@@ -1,0 +1,792 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lecture 11: Logics and Knowledge Representation Quiz</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f4f4f9, #e0e0e0);
+            color: #333;
+            padding: 20px;
+            transition: all 0.3s ease;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body.dark-mode {
+            background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+            color: #e0e0e0;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+            flex: 1;
+        }
+
+        .header {
+            text-align: center;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        body.dark-mode .header {
+            background-color: #2a2a2a;
+            box-shadow: 0 4px 10px rgba(255, 255, 255, 0.1);
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .dark-mode-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .dark-mode-toggle:hover {
+            background-color: #0056b3;
+        }
+
+        .progress-bar {
+            width: 100%;
+            background-color: #e0e0e0;
+            height: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .progress {
+            height: 100%;
+            background-color: #28a745;
+            width: 0;
+            transition: width 0.3s ease;
+        }
+
+        .question {
+            background-color: #ffffff;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            animation: fadeIn 0.5s ease-in;
+            direction: ltr;
+        }
+
+        body.dark-mode .question {
+            background-color: #2a2a2a;
+            box-shadow: 0 4px 10px rgba(255, 255, 255, 0.1);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .question h3 {
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .options label {
+            display: block;
+            padding: 12px;
+            margin: 8px 0;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+
+        body.dark-mode .options label {
+            background-color: #3a3a3a;
+        }
+
+        .options label:hover {
+            background-color: #e0e0e0;
+            transform: scale(1.02);
+        }
+
+        body.dark-mode .options label:hover {
+            background-color: #4a4a4a;
+        }
+
+        .options input {
+            margin-right: 10px;
+        }
+
+        .feedback {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+            direction: rtl;
+            text-align: right;
+            font-size: 1em;
+        }
+
+        .correct {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .wrong {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .submit-btn {
+            padding: 12px 25px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+
+        .submit-btn:hover {
+            background-color: #218838;
+            transform: scale(1.1);
+            animation: bounce 0.3s;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: scale(1.1); }
+            50% { transform: scale(1.15); }
+        }
+
+        .next-btn {
+            padding: 12px 25px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 15px;
+            display: none;
+            transition: background-color 0.3s;
+        }
+
+        .next-btn:hover {
+            background-color: #0056b3;
+        }
+
+        .score {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            display: none;
+        }
+
+        body.dark-mode .score {
+            background-color: #2a2a2a;
+            box-shadow: 0 4px 10px rgba(255, 255, 255, 0.1);
+        }
+
+        .score h2 {
+            margin-bottom: 10px;
+        }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            margin-top: auto;
+            color: #666;
+        }
+
+        body.dark-mode footer {
+            color: #aaa;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 1.5em;
+            }
+
+            .question {
+                padding: 15px;
+            }
+
+            .dark-mode-toggle {
+                top: 10px;
+                right: 10px;
+                padding: 8px 12px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.2em;
+            }
+
+            .question h3 {
+                font-size: 1em;
+            }
+
+            .options label {
+                padding: 10px;
+            }
+
+            .submit-btn, .next-btn {
+                padding: 10px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="dark-mode-toggle" onclick="toggleDarkMode()">Toggle Dark Mode</button>
+    <div class="container">
+        <div class="header">
+            <h1>Lecture 11: Logics and Knowledge Representation Quiz</h1>
+            <p>This quiz page was created by Eng: XE Ahmed Refat – EELU Student Sohag branch</p>
+        </div>
+        <div class="progress-bar">
+            <div class="progress" id="progress"></div>
+        </div>
+        <div id="quiz">
+            <!-- Questions will be populated by JavaScript -->
+        </div>
+        <div class="score" id="score"></div>
+    </div>
+    <footer>
+        <p>© Eng: XE Ahmed Refat – EELU Sohag</p>
+    </footer>
+
+    <script>
+        // Helper function to escape HTML characters
+        function escapeHTML(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        const questions = [
+            {
+                question: "What is the primary purpose of logic in knowledge representation?",
+                options: [
+                    "To formalize reasoning and structure knowledge",
+                    "To design web pages",
+                    "To encrypt data",
+                    "To store data in databases"
+                ],
+                correct: 0,
+                difficulty: "Easy",
+                explanation: "الـ Logic بيستخدم عشان ينظّم التفكير ويهيكل المعرفة بطريقة رسمية، عشان نقدر نستنتج معلومات جديدة."
+            },
+            {
+                question: "What does logic provide to codify the rules of reasoning?",
+                options: [
+                    "A database system",
+                    "A rigorous system",
+                    "A styling framework",
+                    "A query language"
+                ],
+                correct: 1,
+                difficulty: "Easy",
+                explanation: "الـ Logic بيقدّم نظام دقيق (rigorous system) عشان ينظّم قواعد التفكير بدل الاعتماد على الحدس."
+            },
+            {
+                question: "What is the role of inference engines in knowledge-based systems?",
+                options: [
+                    "To style ontologies",
+                    "To derive new conclusions from a knowledge base",
+                    "To store data",
+                    "To create HTML pages"
+                ],
+                correct: 2,
+                difficulty: "Medium",
+                explanation: "الـ Inference Engines هي الـ 'عقل' بتاع الـ knowledge-based systems، بتستخدم قواعد الـ logic عشان تستنتج استنتاجات جديدة."
+            },
+            {
+                question: "Which logic family is used to define the semantics of OWL?",
+                options: [
+                    "Fuzzy Logic",
+                    "Neutrosophic Logic",
+                    "Description Logics",
+                    "Propositional Logic"
+                ],
+                correct: 3,
+                difficulty: "Medium",
+                explanation: "الـ Description Logics هي عيلة من الـ logics بتستخدم عشان تحدّد الـ semantics بتاعة الـ OWL، عشان تضمن وضوح المعنى."
+            },
+            {
+                question: "In propositional logic, what is a proposition?",
+                options: [
+                    "A complex statement with multiple connectives",
+                    "A basic statement that is either true or false",
+                    "A rule for inference",
+                    "A database query"
+                ],
+                correct: 1,
+                difficulty: "Easy",
+                explanation: "الـ Proposition في الـ propositional logic هي جملة بسيطة ممكن تكون صح أو غلط، زي 'الشمس بتشرق'."
+            },
+            {
+                question: "What does the AND (∧) connective require in propositional logic?",
+                options: [
+                    "At least one proposition to be true",
+                    "Both propositions to be true",
+                    "Both propositions to be false",
+                    "The first proposition to imply the second"
+                ],
+                correct: 2,
+                difficulty: "Medium",
+                explanation: "الـ AND (∧) بيطلب إن الجملتين يكونوا صح عشان النتيجة تبقى صح."
+            },
+            {
+                question: "What is a limitation of propositional logic?",
+                options: [
+                    "It can represent uncertainty",
+                    "It cannot handle definite statements",
+                    "It cannot represent vagueness or degrees of truth",
+                    "It is used for styling web pages"
+                ],
+                correct: 2,
+                difficulty: "Medium",
+                explanation: "الـ Propositional Logic مش بيقدر يتعامل مع الغموض أو درجات الحقيقة، وبيتعامل بس مع جمل مؤكدة."
+            },
+            {
+                question: "What does an ontology define in a specific domain?",
+                options: [
+                    "The styling of web pages",
+                    "The concepts and relationships",
+                    "The database structure",
+                    "The query language syntax"
+                ],
+                correct: 1,
+                difficulty: "Easy",
+                explanation: "الـ Ontology بتحدّد المفاهيم والعلاقات في domain معيّن، زي المفردات والقواعد بتاعته."
+            },
+            {
+                question: "What does the NOT (¬) connective do in propositional logic?",
+                options: [
+                    "Combines two propositions",
+                    "Reverses the truth value of a proposition",
+                    "Implies another proposition",
+                    "Defines a class hierarchy"
+                ],
+                correct: 1,
+                difficulty: "Easy",
+                explanation: "الـ NOT (¬) بيعكّس قيمة الحقيقة بتاعة الـ proposition، يعني لو صح بيخلّيها غلط والعكس."
+            },
+            {
+                question: "What is the purpose of truth tables in propositional logic?",
+                options: [
+                    "To store data",
+                    "To define the truth value of complex propositions",
+                    "To create ontologies",
+                    "To query databases"
+                ],
+                correct: 1,
+                difficulty: "Medium",
+                explanation: "الـ Truth Tables بتحدّد قيمة الحقيقة بتاعة الـ propositions المعقدة بناءً على قيم مكوّناتها."
+            },
+            {
+                question: "What does logic enable in computers?",
+                options: [
+                    "Styling of web interfaces",
+                    "Automated deduction",
+                    "Data encryption",
+                    "Web page creation"
+                ],
+                correct: 2,
+                difficulty: "Easy",
+                explanation: "الـ Logic بيخلّي الكمبيوتر يقدر يعمل automated deduction، يعني يستنتج معرفة جديدة من المعلومات الموجودة."
+            },
+            {
+                question: "In an OWL ontology, what can logic infer about relationships?",
+                options: [
+                    "Visual styles",
+                    "Relationships like 'grandparent-of'",
+                    "Database queries",
+                    "HTML tags"
+                ],
+                correct: 1,
+                difficulty: "Medium",
+                explanation: "الـ Logic في الـ OWL بيقدر يستنتج علاقات زي 'grandparent-of' من علاقات زي 'parent-of'."
+            },
+            {
+                question: "What is the role of connectives in propositional logic?",
+                options: [
+                    "To store propositions",
+                    "To combine propositions into complex statements",
+                    "To define ontologies",
+                    "To query RDF data"
+                ],
+                correct: 2,
+                difficulty: "Easy",
+                explanation: "الـ Connectives زي AND وOR بتستخدم عشان تربط الـ propositions وتكوّن جمل معقدة."
+            },
+            {
+                question: "What does the IMPLIES (→) connective mean in propositional logic?",
+                options: [
+                    "Both propositions are false",
+                    "If the first proposition is true, the second must be true",
+                    "Both propositions are true",
+                    "The propositions are unrelated"
+                ],
+                correct: 1,
+                difficulty: "Medium",
+                explanation: "الـ IMPLIES (→) بيعني لو الجملة الأولى صح، لازم الجملة التانية تبقى صح."
+            },
+            {
+                question: "What is a key benefit of structuring knowledge with logic?",
+                options: [
+                    "It makes data harder to access",
+                    "It makes information easier to access and manipulate",
+                    "It encrypts data",
+                    "It styles web pages"
+                ],
+                correct: 2,
+                difficulty: "Easy",
+                explanation: "الـ Logic بيهيكل المعرفة بطريقة تخلّي المعلومات أسهل في الوصول ليها والتعامل معاها."
+            },
+            {
+                question: "What does the IFF (↔) connective indicate in propositional logic?",
+                options: [
+                    "One proposition implies another",
+                    "Both propositions have the same truth value",
+                    "At least one proposition is true",
+                    "Both propositions are false"
+                ],
+                correct: 1,
+                difficulty: "Medium",
+                explanation: "الـ IFF (↔) بيعني إن الجملتين لازم يكون عندهم نفس قيمة الحقيقة، يعني الاتنين صح أو الاتنين غلط."
+            },
+            {
+                question: "What type of statements can propositional logic handle?",
+                options: [
+                    "Uncertain statements",
+                    "Vague statements",
+                    "Definite statements",
+                    "Styling statements"
+                ],
+                correct: 2,
+                difficulty: "Medium",
+                explanation: "الـ Propositional Logic بيتعامل بس مع الجمل المؤكدة (definite statements)، مش مع الغموض أو عدم اليقين."
+            },
+            {
+                question: "What provides the foundation for knowledge representation languages?",
+                options: [
+                    "HTML",
+                    "Logic",
+                    "CSS",
+                    "SQL"
+                ],
+                correct: 1,
+                difficulty: "Easy",
+                explanation: "الـ Logic هو الأساس بتاع لغات تمثيل المعرفة، زي اللي بتستخدم في الـ ontologies."
+            },
+            {
+                question: "What is an example of a complex proposition in propositional logic?",
+                options: [
+                    "A single true/false statement",
+                    "A combination of propositions with connectives",
+                    "A database query",
+                    "An ontology definition"
+                ],
+                correct: 2,
+                difficulty: "Medium",
+                explanation: "الـ Complex Proposition هي جملة مركّبة من propositions متصلة بـ connectives زي AND أو OR."
+            },
+            {
+                question: "What does logic help define in an OWL ontology for 'family'?",
+                options: [
+                    "Web page styles",
+                    "Relationships like 'parent-of'",
+                    "Data encryption methods",
+                    "Query syntax"
+                ],
+                correct: 1,
+                difficulty: "Medium",
+                explanation: "الـ Logic بيساعد في تحديد العلاقات زي 'parent-of' في الـ OWL ontology، ويسمح باستنتاج علاقات زي 'grandparent-of'."
+            },
+            {
+                question: "Logic provides a rigorous system to codify the rules of reasoning.",
+                type: "truefalse",
+                correct: true,
+                difficulty: "Easy",
+                explanation: "صح، الـ Logic بيقدّم نظام دقيق عشان ينظّم قواعد التفكير ويخلّيها رسمية."
+            },
+            {
+                question: "Propositional logic can represent uncertainty.",
+                type: "truefalse",
+                correct: false,
+                difficulty: "Medium",
+                explanation: "غلط، الـ Propositional Logic مش بيقدر يتعامل مع عدم اليقين، وبيتعامل بس مع جمل مؤكدة."
+            },
+            {
+                question: "Ontologies define the concepts and relationships within a domain.",
+                type: "truefalse",
+                correct: true,
+                difficulty: "Easy",
+                explanation: "صح، الـ Ontologies بتحدّد المفاهيم والعلاقات في domain معيّن، زي المفردات والقواعد."
+            },
+            {
+                question: "Inference engines use logical rules to derive new conclusions.",
+                type: "truefalse",
+                correct: true,
+                difficulty: "Medium",
+                explanation: "صح، الـ Inference Engines بتستخدم قواعد الـ logic عشان تستنتج استنتاجات جديدة من الـ knowledge base."
+            },
+            {
+                question: "The AND (∧) connective is true if at least one proposition is true.",
+                type: "truefalse",
+                correct: false,
+                difficulty: "Medium",
+                explanation: "غلط، الـ AND (∧) لازم الجملتين يكونوا صح عشان النتيجة تبقى صح."
+            },
+            {
+                question: "Logic helps structure information into meaningful relationships.",
+                type: "truefalse",
+                correct: true,
+                difficulty: "Easy",
+                explanation: "صح، الـ Logic بيساعد في تهيئة المعلومات في علاقات ذات معنى، عشان تبقى أسهل في التعامل."
+            },
+            {
+                question: "Truth tables are used to style complex propositions.",
+                type: "truefalse",
+                correct: false,
+                difficulty: "Easy",
+                explanation: "غلط، الـ Truth Tables بتستخدم عشان تحدّد قيمة الحقيقة بتاعة الـ propositions المعقدة، مش للـ styling."
+            },
+            {
+                question: "The NOT (¬) connective reverses the truth value of a proposition.",
+                type: "truefalse",
+                correct: true,
+                difficulty: "Easy",
+                explanation: "صح، الـ NOT (¬) بيعكّس قيمة الحقيقة بتاعة الـ proposition."
+            },
+            {
+                question: "Propositional logic can handle degrees of truth.",
+                type: "truefalse",
+                correct: false,
+                difficulty: "Medium",
+                explanation: "غلط، الـ Propositional Logic مش بيقدر يتعامل مع درجات الحقيقة، وبيتعامل بس مع true أو false."
+            },
+            {
+                question: "Description Logics are used to define the semantics of OWL.",
+                type: "truefalse",
+                correct: true,
+                difficulty: "Medium",
+                explanation: "صح، الـ Description Logics بتستخدم عشان تحدّد الـ semantics بتاعة الـ OWL، وتضمن وضوح المعنى."
+            },
+            {
+                question: "Logic is only useful for human reasoning, not for computers.",
+                type: "truefalse",
+                correct: false,
+                difficulty: "Easy",
+                explanation: "غلط، الـ Logic مفيد للـ human reasoning وكمان للـ computers، عشان يعملوا automated deduction."
+            },
+            {
+                question: "The OR (∨) connective is true if at least one proposition is true.",
+                type: "truefalse",
+                correct: true,
+                difficulty: "Easy",
+                explanation: "صح، الـ OR (∨) بيكون صح لو واحدة على الأقل من الجمل صح."
+            },
+            {
+                question: "Ontologies are used to query databases.",
+                type: "truefalse",
+                correct: false,
+                difficulty: "Medium",
+                explanation: "غلط، الـ Ontologies بتحدّد المفاهيم والعلاقات في domain، مش بتستخدم لـ querying databases."
+            },
+            {
+                question: "Logic enables automated inference in knowledge-based systems.",
+                type: "truefalse",
+                correct: true,
+                difficulty: "Easy",
+                explanation: "صح، الـ Logic بيخلّي الـ knowledge-based systems تقدر تعمل automated inference."
+            },
+            {
+                question: "The IMPLIES (→) connective is true if both propositions are false.",
+                type: "truefalse",
+                correct: true,
+                difficulty: "Medium",
+                explanation: "صح، الـ IMPLIES (→) بيكون صح لو الجملتين غلط، أو لو الأولى غلط والتانية صح، أو الاتنين صح."
+            }
+        ];
+
+        let currentQuestion = 0;
+        let score = 0;
+
+        function updateProgress() {
+            const progress = document.getElementById('progress');
+            const percentage = ((currentQuestion + 1) / questions.length) * 100;
+            progress.style.width = `${percentage}%`;
+        }
+
+        function loadQuestion() {
+            const quizDiv = document.getElementById('quiz');
+            const question = questions[currentQuestion];
+            let html = `
+                <div class="question">
+                    <h3>${currentQuestion + 1}. ${escapeHTML(question.question)} (${question.difficulty})</h3>
+                    <div class="options">
+            `;
+
+            if (question.type === 'truefalse') {
+                html += `
+                    <label><input type="radio" name="answer" value="true"> True</label>
+                    <label><input type="radio" name="answer" value="false"> False</label>
+                `;
+            } else {
+                question.options.forEach((option, index) => {
+                    html += `
+                        <label><input type="radio" name="answer" value="${index}"> ${escapeHTML(option)}</label>
+                    `;
+                });
+            }
+
+            html += `
+                    </div>
+                    <button class="submit-btn" onclick="submitAnswer()">Submit</button>
+                    <div class="feedback" id="feedback"></div>
+                    <button class="next-btn" onclick="nextQuestion()">Next</button>
+                </div>
+            `;
+
+            quizDiv.innerHTML = html;
+            updateProgress();
+        }
+
+        function submitAnswer() {
+            const selected = document.querySelector('input[name="answer"]:checked');
+            const feedbackDiv = document.getElementById('feedback');
+            const question = questions[currentQuestion];
+
+            if (!selected) {
+                feedbackDiv.style.display = 'block';
+                feedbackDiv.className = 'feedback wrong';
+                feedbackDiv.innerHTML = 'من فضلك اختار إجابة!';
+                return;
+            }
+
+            const isCorrect = question.type === 'truefalse'
+                ? selected.value === question.correct.toString()
+                : parseInt(selected.value) === question.correct;
+
+            feedbackDiv.style.display = 'block';
+            feedbackDiv.className = `feedback ${isCorrect ? 'correct' : 'wrong'}`;
+            feedbackDiv.innerHTML = isCorrect
+                ? `صح! ${question.explanation}`
+                : `غلط! ${question.explanation}`;
+
+            if (isCorrect) score++;
+
+            document.querySelector('.submit-btn').style.display = 'none';
+            document.querySelector('.next-btn').style.display = 'block';
+        }
+
+        function nextQuestion() {
+            currentQuestion++;
+            if (currentQuestion < questions.length) {
+                loadQuestion();
+            } else {
+                showScore();
+            }
+        }
+
+        function showScore() {
+            const quizDiv = document.getElementById('quiz');
+            const scoreDiv = document.getElementById('score');
+            quizDiv.style.display = 'none';
+            scoreDiv.style.display = 'block';
+
+            let feedback = '';
+            const percentage = (score / questions.length) * 100;
+            if (percentage >= 80) {
+                feedback = 'ممتاز! عملت شغل عالي جداً، كمل كده!';
+            } else if (percentage >= 50) {
+                feedback = 'كويس! بس فيه مجال للتحسين، ركز أكتر.';
+            } else {
+                feedback = 'محتاج تذاكر أكتر! جرب تراجع الـ lecture تاني.';
+            }
+
+            scoreDiv.innerHTML = `
+                <h2>Your Final Score: ${score} out of ${questions.length}</h2>
+                <p>Percentage: ${percentage.toFixed(2)}%</p>
+                <p>${feedback}</p>
+            `;
+        }
+
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+        }
+
+        // Load the first question
+        loadQuestion();
+    </script>
+</body>
+</html>
